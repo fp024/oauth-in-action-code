@@ -1,7 +1,14 @@
-database.nosql
 example/native-client/platforms/
 example/native-client/plugins/
 exercises/ch-7-ex-0/platforms/
 exercises/ch-7-ex-0/plugins/
-.DS_Store
-package-lock.json
+
+**/.DS_Store
+**/database.nosql
+
+# package-lock.json 은 버전관리가 되는게 낫다고 하니, 무시하지 말자!
+# https://stackoverflow.com/questions/44206782/do-i-commit-the-package-lock-json-file-created-by-npm-5
+#**/package-lock.json
+
+# WebStorm 메타 디렉토리 제외
+**/.idea
