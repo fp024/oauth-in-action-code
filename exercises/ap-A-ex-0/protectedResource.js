@@ -1,4 +1,4 @@
-var express = require("express");
+var express = require('express');
 var cons = require('consolidate');
 var bodyParser = require('body-parser');
 var __ = require('underscore');
@@ -17,8 +17,8 @@ app.use('/', express.static('files/protectedResource'));
 app.use(cors());
 
 var resource = {
-	"name": "Protected Resource",
-	"description": "This data has been protected by OAuth 2.0"
+  name: 'Protected Resource',
+  description: 'This data has been protected by OAuth 2.0',
 };
 
 var server = app.listen(9002, 'localhost', function () {
@@ -27,4 +27,3 @@ var server = app.listen(9002, 'localhost', function () {
 
   console.log('OAuth Resource Server is listening at http://%s:%s', host, port);
 });
- 
