@@ -44,6 +44,9 @@ app.get('/', function(req, res) {
   res.render('index', { access_token: access_token, scope: scope });
 });
 
+
+
+
 // 인가 엔드포인트로 연결
 app.get('/authorize', function(req, res) {
 
@@ -69,7 +72,8 @@ app.get('/callback', function(req, res) {
   // 전달했었던 state 검사
   console.log('callback에서의 state 값: %s', req.query.state);
   if (req.query.state != state) {
-    res.render('error', { error: 'State value did not match' });
+    // res.render('error', { error: 'State value did not match' });
+    res.redirect("/authorize");
     return;
   }
 
@@ -126,7 +130,8 @@ app.get('/fetch_resource', function(req, res) {
 
   // 엑세스 토큰을 가지고 있는지 체크
   if (!access_token) {
-    res.render('error', { error: 'Missing access token.' });
+    //res.render('error', { error: 'Missing access token.' });
+    res.redirect("/authorize");
     return;
   }
 
@@ -142,8 +147,9 @@ app.get('/fetch_resource', function(req, res) {
     res.render('data', { resource: body });
     return;
   } else {
-    res.render('error', { error: 'Server returned response code: ' + resource.statusCode });
-    return;
+    //res.render('error', { error: 'Server returned response code: ' + resource.statusCode });
+    //return;
+    res.redirect("/authorize");
   }
 });
 
