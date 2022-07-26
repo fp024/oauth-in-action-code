@@ -13,3 +13,14 @@ OAuth 2 in Action teaches you practical use and deployment of this protocol from
 ## About the authors
 
 Justin Richer is a systems architect, software engineer, standards editor, and service designer working as an independent consultant. [Antonio Sanso](http://blog.intothesymmetry.com/) works as Security Software Engineer, he is a vulnerability security researcher and an active open source contributor.
+
+
+
+---
+
+## 기타
+
+연습 챕터 진행전에 Prettier로 코드 포맷팅을 하기로 했다.
+일괄로 할 때는 포맷팅 오류가 발생하는 파일들이 있어서, 매 챕터 진행마다 확인하면서 진행하면 되겠다.
+
+* [Prettier를-사용해서-소스코드-포맷팅](https://github.com/fp024/etc/blob/main/source-formatting/Prettier/Prettier%EB%A5%BC-%EC%82%AC%EC%9A%A9%ED%95%B4%EC%84%9C-%EC%86%8C%EC%8A%A4%EC%BD%94%EB%93%9C-%ED%8F%AC%EB%A7%B7%ED%8C%85.md)
