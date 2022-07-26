@@ -31,6 +31,7 @@ var client = {
   redirect_uris: ['http://localhost:9000/callback'],
 };
 
+// 보호된 리소스 서버 주소
 var protectedResource = 'http://localhost:9002/resource';
 
 // 크로스 사이트 공격방지용 state 파라미터
@@ -117,10 +118,33 @@ app.get('/callback', function(req, res) {
 
 });
 
+// 보호된 리소스 서버를 호출하기 위해 엑세스 토큰을 사용.
 app.get('/fetch_resource', function(req, res) {
   /*
    * Use the access token to call the resource server
    */
+
+  // 엑세스 토큰을 가지고 있는지 체크
+  if (!access_token) {
+    res.render('error', { error: 'Missing access token.' });
+    return;
+  }
+
+  var headers = {
+    'Authorization': 'Bearer ' + access_token,
+  };
+
+  // 리소스 요청
+  var resource = request('POST', protectedResource, { headers: headers });
+
+  if (resource.statusCode >= 200 && resource.statusCode < 300) {
+    var body = JSON.parse(resource.getBody());
+    res.render('data', { resource: body });
+    return;
+  } else {
+    res.render('error', { error: 'Server returned response code: ' + resource.statusCode });
+    return;
+  }
 });
 
 var buildUrl = function(base, options, hash) {
