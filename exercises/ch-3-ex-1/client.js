@@ -33,6 +33,7 @@ var client = {
 
 var protectedResource = 'http://localhost:9002/resource';
 
+// 크로스 사이트 공격방지용 state 파라미터
 var state = null;
 
 var access_token = null;
@@ -44,6 +45,9 @@ app.get('/', function(req, res) {
 
 // 인가 엔드포인트로 연결
 app.get('/authorize', function(req, res) {
+
+  state = randomstring.generate();
+  console.log('authorize에서 생성한 state 값: %s', state);
   /*
    * Send the user to the authorization server
    * 사용자를 인가 서버로 보냄
@@ -52,6 +56,7 @@ app.get('/authorize', function(req, res) {
     response_type: 'code',
     client_id: client.client_id,
     redirect_uri: client.redirect_uris[0],
+    state: state,
   });
 
   res.redirect(authorizeUrl);
@@ -59,11 +64,20 @@ app.get('/authorize', function(req, res) {
 
 // 인가 요청에 대한 응답 처리
 app.get('/callback', function(req, res) {
+
+  // 전달했었던 state 검사
+  console.log('callback에서의 state 값: %s', req.query.state);
+  if (req.query.state != state) {
+    res.render('error', { error: 'State value did not match' });
+    return;
+  }
+
   /*
    * Parse the response from the authorization server and get a token
    * 인가 서버로 부터 응답을 해석하고 토큰을 얻음.
    */
   var code = req.query.code;
+
 
   // 인가 코드를 추출해 토큰 엔드 포인트로 직접 HTTP POST 전송해야함.
   var form_data = qs.stringify({
