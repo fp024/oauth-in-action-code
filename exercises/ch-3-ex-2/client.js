@@ -173,6 +173,8 @@ var refreshAccessToken = function(req, res) {
       refresh_token = body.refresh_token;
     }
     scope = body.scope;
+    // 리프레시 토큰으로 인가서버의 token URI를 호출할 때, scope를 전달하지 않아서 scope가 null이 되는 것 같음.
+    console.log('리프레시 토큰 이후의 Scope: %s', scope);
     res.redirect('/fetch_resource');
     return;
   } else {
