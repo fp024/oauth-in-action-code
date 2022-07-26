@@ -172,15 +172,14 @@ var refreshAccessToken = function(req, res) {
     if (body.refresh_token) {
       refresh_token = body.refresh_token;
     }
-
+    scope = body.scope;
+    res.redirect('/fetch_resource');
+    return;
   } else {
-    access_token = null;
     refresh_token = null;
     res.render('error', { error: 'Unable to refresh token.' });
     return;
   }
-
-  res.redirect('/fetch_resource');
 };
 
 var buildUrl = function(base, options, hash) {
