@@ -33,15 +33,16 @@ var protectedResource = 'http://localhost:9002/resource';
 
 var state = null;
 
+// 유효하지 않은 토큰
 var access_token = '987tghjkiu6trfghjuytrghj';
 var scope = null;
 var refresh_token = 'j2r3oj32r23rmasd98uhjrk2o3i';
 
-app.get('/', function (req, res) {
+app.get('/', function(req, res) {
   res.render('index', { access_token: access_token, scope: scope, refresh_token: refresh_token });
 });
 
-app.get('/authorize', function (req, res) {
+app.get('/authorize', function(req, res) {
   access_token = null;
   scope = null;
   state = randomstring.generate();
@@ -58,7 +59,7 @@ app.get('/authorize', function (req, res) {
   res.redirect(authorizeUrl);
 });
 
-app.get('/callback', function (req, res) {
+app.get('/callback', function(req, res) {
   if (req.query.error) {
     // it's an error response, act accordingly
     res.render('error', { error: req.query.error });
@@ -112,7 +113,7 @@ app.get('/callback', function (req, res) {
   }
 });
 
-app.get('/fetch_resource', function (req, res) {
+app.get('/fetch_resource', function(req, res) {
   console.log('Making request with access token %s', access_token);
 
   var headers = {
@@ -130,24 +131,65 @@ app.get('/fetch_resource', function (req, res) {
     /*
      * Instead of always returning an error like we do here, refresh the access token if we have a refresh token
      */
-    console.log('resource status error code ' + resource.statusCode);
-    res.render('error', { error: 'Unable to fetch resource. Status ' + resource.statusCode });
+    access_token = null;
+    if (refresh_token) {
+      refreshAccessToken(req, res);
+      return;
+    } else {
+
+      console.log('resource status error code ' + resource.statusCode);
+      res.render('error', { error: 'Unable to fetch resource. Status ' + resource.statusCode });
+    }
   }
 });
 
-var refreshAccessToken = function (req, res) {
+// 새로운 액세스 토큰을 얻기 위해 리프레시 토큰 사용
+var refreshAccessToken = function(req, res) {
   /*
    * Use the refresh token to get a new access token
    */
+  var form_data = qs.stringify({
+    grant_type: 'refresh_token',
+    refresh_token: refresh_token,
+  });
+
+  var headers = {
+    'Content-Type': 'application/x-www-form-urlencoded',
+    'Authorization': 'Basic ' + encodeClientCredentials(client.client_id, client.client_secret),
+  };
+
+  var tokRes = request('POST', authServer.tokenEndpoint, {
+    body: form_data,
+    headers: headers,
+  });
+
+  if (tokRes.statusCode >= 200 && tokRes.statusCode < 300) {
+    var body = JSON.parse(tokRes.getBody());
+
+    access_token = body.access_token;
+
+    // 리프레시 토큰도 새로 받으면, 이전 것은 폐기하고 새로운 것을 사용한다.
+    if (body.refresh_token) {
+      refresh_token = body.refresh_token;
+    }
+
+  } else {
+    access_token = null;
+    refresh_token = null;
+    res.render('error', { error: 'Unable to refresh token.' });
+    return;
+  }
+
+  res.redirect('/fetch_resource');
 };
 
-var buildUrl = function (base, options, hash) {
+var buildUrl = function(base, options, hash) {
   var newUrl = url.parse(base, true);
   delete newUrl.search;
   if (!newUrl.query) {
     newUrl.query = {};
   }
-  __.each(options, function (value, key, list) {
+  __.each(options, function(value, key, list) {
     newUrl.query[key] = value;
   });
   if (hash) {
@@ -157,7 +199,7 @@ var buildUrl = function (base, options, hash) {
   return url.format(newUrl);
 };
 
-var encodeClientCredentials = function (clientId, clientSecret) {
+var encodeClientCredentials = function(clientId, clientSecret) {
   return Buffer.from(
     querystring.escape(clientId) + ':' + querystring.escape(clientSecret),
   ).toString('base64');
@@ -165,7 +207,7 @@ var encodeClientCredentials = function (clientId, clientSecret) {
 
 app.use('/', express.static('files/client'));
 
-var server = app.listen(9000, 'localhost', function () {
+var server = app.listen(9000, 'localhost', function() {
   var host = server.address().address;
   var port = server.address().port;
   console.log('OAuth Client is listening at http://%s:%s', host, port);
