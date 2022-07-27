@@ -28,13 +28,26 @@ var authServer = {
 var clients = [
   /*
    * Enter client information here
+   * 클라이언트 정보 입력: 정적으로 인가서버에 클라이언트를 등록 (예제 단순회를 위해서 그러신 것 같다.)
+   * 클라이언트 정보는 일반적으로 DB에 저장하지만, 예제 동작의 확인 편리성을 위해 변수에 저장
    */
+  {
+    'client_id': 'oauth-client-1',
+    'client_secret': 'oauth-client-secret-1',
+    'redirect_uris': ['http://localhost:9000/callback'],
+  },
+
 ];
 
 var codes = {};
 
 var requests = {};
 
+/**
+ * 클라이언트 ID로 클라이언트 조회
+ * @param clientId  클라이언트 ID
+ * @returns {*} 클라이언트 객체, 해당 클라이언트 ID에 해당하는 객체가 없다면 undefined 반환
+ */
 var getClient = function(clientId) {
   return __.find(clients, function(client) {
     return client.client_id == clientId;
