@@ -62,26 +62,50 @@ var savedWords = [];
 app.get('/words', getAccessToken, requireAccessToken, function(req, res) {
   /*
    * Make this function require the "read" scope
+   * 이 함수를 "read" 스코프를 요구하도록 만들어야함.
    */
-  res.json({ words: savedWords.join(' '), timestamp: Date.now() });
+  if (__.contains(req.access_token.scope, 'read')) {
+    res.json({ words: savedWords.join(' '), timestamp: Date.now() });
+  } else {
+    console.log('GET /words 호출시 read 권한이 없음');
+    // 토큰에 포함된 범위가 포함되어있지 않으면 WWW-Authenticate 헤더를 통해 에러를 반환
+    res.set('WWW-Authenticate', 'Bearer realm=localhost:9002, error="insufficient_scope", scope="read"');
+    res.status(403).end();
+  }
+
 });
 
 app.post('/words', getAccessToken, requireAccessToken, function(req, res) {
   /*
    * Make this function require the "write" scope
+   * 이 함수를 "write" 스코프를 요구하도록 만들어야함.
    */
-  if (req.body.word) {
-    savedWords.push(req.body.word);
+  if (__.contains(req.access_token.scope, 'write')) {
+    if (req.body.word) {
+      savedWords.push(req.body.word);
+    }
+    res.status(201).end();
+  } else {
+    console.log('POST /words 호출시 write 권한이 없음');
+    // 토큰에 포함된 범위가 포함되어있지 않으면 WWW-Authenticate 헤더를 통해 에러를 반환
+    res.set('WWW-Authenticate', 'Bearer realm=localhost:9002, error="insufficient_scope", scope="write"');
+    res.status(403).end();
   }
-  res.status(201).end();
 });
 
 app.delete('/words', getAccessToken, requireAccessToken, function(req, res) {
   /*
    * Make this function require the "delete" scope
+   * 이 함수를 "delete" 스코프를 요구하도록 만들어야함.
    */
-  savedWords.pop();
-  res.status(204).end();
+  if (__.contains(req.access_token.scope, 'delete')) {
+    savedWords.pop();
+    res.status(204).end();
+  } else {
+    console.log('DELETE /words 호출시 delete 권한이 없음');
+    res.set('WWW-Authenticate', 'Bearer realm=localhost:9002, error="insufficient_scope", scope="delete"');
+    res.status(403).end();
+  }
 });
 
 var server = app.listen(9002, 'localhost', function() {

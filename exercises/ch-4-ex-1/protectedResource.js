@@ -23,6 +23,18 @@ var resource = {
 
 
 /**
+ * 액세스 토큰이 반드시 필요하다는 것을 처리하기위한 핸들러
+ */
+var requireAccessToken = function(req, res, next) {
+  if (req.access_token) {
+    next();
+  } else {
+    res.status(401).end();
+  }
+};
+
+
+/**
  * 유입된 요청에서 액세스 토큰 스캔
  * @param req   요청
  * @param res   응답
@@ -75,18 +87,8 @@ app.options('/resource', cors());
  * 요청객체에 access_token 값이 토큰값이 정상 설정되거나 null로 설정됨
  * 지면에는 cors()가 없는데... 저자님 예제 코드를 보니 cors 뒤에다 getAccessToken 을 배치하신 것 확인했다.
  */
-app.post('/resource', cors(), getAccessToken, function(req, res) {
-  /*
-   * Check to see if the access token was found or not
-   *
-   * 토큰을 찾았는지 못찾았는지 여부 확인
-   * 못찾았다면 401응답
-   */
-  if (req.access_token) {
-    res.json(resource);
-  } else {
-    res.status(401).end();
-  }
+app.post('/resource', cors(), getAccessToken, requireAccessToken, function(req, res) {
+  res.json(resource);
 });
 
 var server = app.listen(9002, 'localhost', function() {

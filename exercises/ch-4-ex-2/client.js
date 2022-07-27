@@ -142,6 +142,8 @@ app.get('/get_words', function(req, res) {
     res.render('words', { words: body.words, timestamp: body.timestamp, result: 'get' });
     return;
   } else {
+    // Express.js에서 헤더 키를 소문자로 처리해서, 읽을 때도 소문자로 바꿔서 읽어야할 것 같다.
+    console.log('리소스 서버로 부터의 응답헤더 중.. WWW-Authenticate: %s', resource.headers['WWW-Authenticate'.toLowerCase()]);
     res.render('words', { words: '', timestamp: 0, result: 'noget' });
     return;
   }
@@ -157,10 +159,12 @@ app.get('/add_word', function(req, res) {
 
   var resource = request('POST', wordApi, { headers: headers, body: form_body });
 
+  // 단어를 추가에 성공하든 실패하든, 클라이언트 뷰에서는 읽었던 결과를 초기화하기 위해 빈 값들로 채워넣음.
   if (resource.statusCode >= 200 && resource.statusCode < 300) {
     res.render('words', { words: '', timestamp: 0, result: 'add' });
     return;
   } else {
+    console.log('리소스 서버로 부터의 응답헤더 중.. WWW-Authenticate: %s', resource.headers['WWW-Authenticate'.toLowerCase()]);
     res.render('words', { words: '', timestamp: 0, result: 'noadd' });
     return;
   }
@@ -178,6 +182,7 @@ app.get('/delete_word', function(req, res) {
     res.render('words', { words: '', timestamp: 0, result: 'rm' });
     return;
   } else {
+    console.log('리소스 서버로 부터의 응답헤더 중.. WWW-Authenticate: %s', resource.headers['WWW-Authenticate'.toLowerCase()]);
     res.render('words', { words: '', timestamp: 0, result: 'norm' });
     return;
   }
