@@ -72,11 +72,42 @@ var bobFavorites = {
 app.get('/favorites', getAccessToken, requireAccessToken, function(req, res) {
   /*
    * Get different user information based on the information of who approved the token
+   * 토큰을 승인한 유저 정보를 기반으로 다른 유저 정보를 얻음.
    */
+  var scope = req.access_token.scope;
 
-  var unknown = { user: 'Unknown', favorites: { movies: [], foods: [], music: [] } };
-  res.json(unknown);
+  if (req.access_token.user == 'alice') {
+    res.json({ user: 'Alice', favorites: allowedFavorites(scope, aliceFavorites) });
+  } else if (req.access_token.user == 'bob') {
+    res.json({ user: 'Bob', favorites: allowedFavorites(scope, bobFavorites) });
+  } else {
+    var unknown = { user: 'Unknown', favorites: { movies: [], foods: [], music: [] } };
+    res.json(unknown);
+  }
 });
+
+/**
+ * Scope 처리할 수 있게 헬퍼 함수 추가
+ */
+var allowedFavorites = function(scope, favorites) {
+  console.log(`scope: ${scope}`);
+  var allowedFavorites = { movies: [], foods: [], music: [] };
+
+  if (__.contains(scope, 'movies')) {
+    allowedFavorites.movies = favorites.movies;
+  }
+
+  if (__.contains(scope, 'foods')) {
+    allowedFavorites.foods = favorites.foods;
+  }
+
+  if (__.contains(scope, 'music')) {
+    allowedFavorites.music = favorites.music;
+  }
+
+  return allowedFavorites;
+};
+
 
 var server = app.listen(9002, 'localhost', function() {
   var host = server.address().address;
