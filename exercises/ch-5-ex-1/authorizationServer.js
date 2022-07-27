@@ -141,11 +141,45 @@ app.post('/approve', function(req, res) {
 
 });
 
+// 토큰 앤드 포인트
 app.post('/token', function(req, res) {
   /*
    * Process the request, issue an access token
+   * 요청을 처리하고 엑세스 토큰을 발행
    */
+
+  const auth = req.headers['authorization'];
+  let clientId = null;
+  let clientSecret = null;
+
+  if (auth) {
+    const clientCredentials = decodeClientCredentials(auth);
+    clientId = clientCredentials.id;
+    clientSecret = clientCredentials.secret;
+  }
+
+  // form으로 clientId가 전달 되었는지 검사
+  if (req.body.client_id) {
+    // 클라이언트가 헤더로도 전달하고 form로도 전달하면 에러로 간주.
+    if (clientId) {
+      res.status(401).json({ error: 'invalid_client' });
+    }
+    clientId = req.body.client_id;
+    clientSecret = req.body.client_secret;
+  }
+
+  console.log(`POST /token 에서의 유입된 clientId: ${clientId}, clientSecret: ${clientSecret}`);
+
+  // 클라이언트가 등록된 클라이언트 목록에 없다면 에러반환
+  const client = getClient(clientId);
+  if (!client) {
+    res.status(401).json({ error: 'invalid_client' });
+    return;
+  }
+
+
 });
+
 
 var buildUrl = function(base, options, hash) {
   var newUrl = url.parse(base, true);
@@ -163,6 +197,12 @@ var buildUrl = function(base, options, hash) {
   return url.format(newUrl);
 };
 
+
+/**
+ * HTTP Authorization 헤더 값을 디코드하여 인증정보 위한 유틸리티 함수
+ * @param auth HTTP Authorization 헤더 값
+ * @returns {{id: string, secret: string}}
+ */
 var decodeClientCredentials = function(auth) {
   var clientCredentials = Buffer.from(auth.slice('basic '.length), 'base64').toString().split(':');
   var clientId = querystring.unescape(clientCredentials[0]);
