@@ -58,16 +58,87 @@ app.get('/', function(req, res) {
   res.render('index', { clients: clients, authServer: authServer });
 });
 
+// 인가 포인트 역활
 app.get('/authorize', function(req, res) {
   /*
    * Process the request, validate the client, and send the user to the approval page
+   * 요청을 처리하고 클라이언트를 확인하고 사용자를 승인 페이지로 보냅니다.
    */
+
+  // 1. 인가를 요청한 클라이언트를 확인
+  var client = getClient(req.query.client_id);
+
+  if (!client) {
+    // 등록되지 않은 클라이언트라면...
+    res.render('error', { error: 'Unknown client' });
+    return;
+  } else if (!__.contains(client.redirect_uris, req.query.redirect_uri)) { // 등록된 클라이언트지만 리다이렉트 URI정보가 다르다면...
+    res.render('error', { error: 'Invalid redirect URI' });
+    return;
+  }
+
+  // 사용자가 승인한 이후에 다시 참조할 수 있도록 현재 요청에 대한 고유 ID 생성
+  // CSRF 공격 차단 효과를 위해서도 사용
+  var reqid = randomstring.generate(8);
+  // 해당 요청 ID를 키로 요청 쿼리를 저장
+  requests[reqid] = req.query;
+
+  res.render('approve', { client: client, reqid: reqid });
+
 });
 
 app.post('/approve', function(req, res) {
   /*
    * Process the results of the approval page, authorize the client
+   * 승인 페이지 결과 처리, 클라이언트 권한 부여
    */
+  // '/authorize' 에서 만들어서 사용자 브라우저 결과에 hidden으로 저장되었던 reqid를 요청객체에서 가져옴.
+  var reqid = req.body.reqid;
+  var query = requests[reqid];
+  delete requests[reqid];
+
+  if (!query) {
+    res.render('error', { error: 'No matching authorization request' });
+    return;
+  }
+
+
+  if (req.body.approve) { // 사용자가 Approve 버튼 클릭
+
+    if (query.response_type == 'code') { // 인가 코드 그랜트 타입에 대한 처리
+      var code = randomstring.generate(8);
+
+      codes[code] = { request: query };
+
+      // 클라이언트 보호를 위해 state 전달했던 것을 다시 그대로 클라이언트에 전달.
+      var urlParsed = buildUrl(query.redirect_uri, {
+        code: code,
+        state: query.state,
+      });
+      res.redirect(urlParsed);
+      return;
+
+    } else {
+      var urlParsed = buildUrl(query.redirect_uri, {
+        error: 'unsupported_response_type',
+      });
+
+      res.redirect(urlParsed);
+      return;
+    }
+
+  } else { // 사용자가 Deny 버튼 클릭
+    // 클라이언트의 리다이렉트 URI에 error 파라미터를 설정해서 리다이렉트
+    // 이런식의 URL이 됨:  http://localhost:9000/callback?error=access_denied
+    var urlParsed = buildUrl(query.redirect_uri, {
+      error: 'access_denied',
+    });
+
+    res.redirect(urlParsed);
+    return;
+  }
+
+
 });
 
 app.post('/token', function(req, res) {
