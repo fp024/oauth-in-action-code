@@ -177,6 +177,46 @@ app.post('/token', function(req, res) {
     return;
   }
 
+  // 인가 서버 코드 저장소에 있는 것과 Authorization 헤더로 부터 전달받은 client secret 값을 비교
+  if (client.client_secret != clientSecret) {
+    res.status(401).json({ error: 'invalid_client' });
+    return;
+  }
+
+  if (req.body.grant_type == 'authorization_code') {
+    const code = codes[req.body.code];
+
+    if (code) {
+
+      // 전달된 코드가 유효한 것이이 확인되면 그것을 서버 저장소에서 제거함
+      // 악의적인 클라이언트가 탈취된 인가코드를 사용할 수 있기 때문.
+      // 한번 사용된 인가코드는 더 이상 사용못하게 함.
+      delete codes[req.body.code];
+
+      if (code.request.client_id == clientId) {
+
+        // 모든 유효성이 통과 되었으면  엑세스 토큰 생성하여 저장소에 저장
+        const access_token = randomstring.generate();
+        nosql.insert({ access_token: access_token, clientId: clientId });
+
+        const token_response = { access_token: access_token, token_type: 'Bearer' };
+        res.status(200).json(token_response);
+
+      } else {
+        res.status(400).json({ error: 'invalid_grant: code.request.client_id == clientId 조건이 거짓' });
+        return;
+      }
+
+    } else {
+      res.status(400).json({ error: 'invalid_grant: 유입된 코드가 저장된 코드 목록에 없음' });
+      return;
+    }
+
+
+  } else {
+    res.status(400).json({ error: 'unsupported_grant-type' });
+    return;
+  }
 
 });
 
@@ -204,7 +244,9 @@ var buildUrl = function(base, options, hash) {
  * @returns {{id: string, secret: string}}
  */
 var decodeClientCredentials = function(auth) {
+  console.log(`decodeClientCredentials: auth: ${auth}`);
   var clientCredentials = Buffer.from(auth.slice('basic '.length), 'base64').toString().split(':');
+  console.log(`decodeClientCredentials: clientCredentials: ${clientCredentials}`);
   var clientId = querystring.unescape(clientCredentials[0]);
   var clientSecret = querystring.unescape(clientCredentials[1]);
   return { id: clientId, secret: clientSecret };
