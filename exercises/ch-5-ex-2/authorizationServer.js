@@ -156,17 +156,21 @@ app.post('/token', function(req, res) {
     if (code) {
       delete codes[req.body.code]; // burn our code, it's been used
       if (code.request.client_id == clientId) {
-        var access_token = randomstring.generate();
+        const access_token = randomstring.generate();
         nosql.insert({ access_token: access_token, client_id: clientId });
 
         /*
-         * Issue a refresh token along side the access token and save it to the database
+         * Issue a refresh token alongside the access token and save it to the database
+         * 액세스 토큰과 함께 리프레시 토큰을 발행하고 데이터베이스에 저장합니다.
          */
+        const refresh_token = randomstring.generate();
+        nosql.insert({ refresh_token: refresh_token, client_id: clientId });
+
 
         console.log('Issuing access token %s', access_token);
         console.log('with scope %s', code.scope);
 
-        var token_response = { access_token: access_token, token_type: 'Bearer' };
+        const token_response = { access_token: access_token, token_type: 'Bearer', refresh_token: refresh_token };
 
         res.status(200).json(token_response);
         console.log('Issued tokens for code %s', req.body.code);
@@ -185,7 +189,46 @@ app.post('/token', function(req, res) {
 
     /*
      * Respond to a refresh token request by issuing a new access token
+     * 새 액세스 토큰을 발행하여 리프레시 토큰 요청에 응답
      */
+  } else if (req.body.grant_type == 'refresh_token') {
+    // 저장소에 저장된 토큰이 있는지 확인.
+    nosql.one().make(function(filter) {
+      filter.where('refresh_token', req.body.refresh_token);
+      filter.callback(function(error, token) {
+        if (token) {
+
+          // 토큰이 침해되었다고 판단되면 저장소에서 리프레시 토큰 삭제
+          if (token.client_id != clientId) {
+            nosql.remove().make(function(filter) {
+              filter.where('refresh_token', req.body.refresh_token);
+            });
+            res.status(400).json({ error: 'invalid_grant' });
+            return;
+          }
+
+          // 리프레시 토큰의 유효성을 확인하여 엑세스 토큰을 새로 만듬
+          const access_token = randomstring.generate();
+          nosql.insert({ access_token: access_token, client_id: clientId });
+
+          // 여기서는 요청 객체에 담겨 들어왔던 유효한 리프레시 토큰을 그대로 담아서 응답을 만듬.
+          const token_response = {
+            access_token: access_token,
+            token_type: 'Bearer',
+            refresh_token: req.body.refresh_token,
+          };
+          res.status(200).json(token_response);
+
+        } else {
+          console.log(`유효하지 않은 리프레시 토큰: ${req.body.refresh_token}`);
+          res.status(400).json('invalid_grant');
+          return;
+        }
+      });
+
+    });
+
+
   } else {
     console.log('Unknown grant type %s', req.body.grant_type);
     res.status(400).json({ error: 'unsupported_grant_type' });
