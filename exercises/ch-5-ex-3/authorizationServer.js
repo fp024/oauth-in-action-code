@@ -33,7 +33,9 @@ var clients = [
 
     /*
      * Add a set of allowed scopes for this client
+     * 클라이언트를 위해 허용된 스코프 집합 추가
      */
+    scope: 'foo bar',
   },
 ];
 
@@ -51,8 +53,11 @@ app.get('/', function(req, res) {
   res.render('index', { clients: clients, authServer: authServer });
 });
 
+/**
+ * 사용자가 볼 인가 뷰 랜더링
+ */
 app.get('/authorize', function(req, res) {
-  var client = getClient(req.query.client_id);
+  const client = getClient(req.query.client_id);
 
   if (!client) {
     console.log('Unknown client %s', req.query.client_id);
@@ -70,7 +75,22 @@ app.get('/authorize', function(req, res) {
     /*
      * Validate that the set of scopes the client is requesting
      * aligns with the set of scopes the client is registered for.
+     * 클라이언트가 요청하는 Scope 집합이 클라이언트가 등록된 Scope 집합과 일치하는지 확인합니다.
      */
+    // 예제에서는 인가 요청시 기본 스코프 값이 설정되어있음.
+    const rscope = req.query.scope ? req.query.scope.split(' ') : undefined;
+
+    // 인가서버에 클라이언트 정보에 설정해둔 스코프
+    const cscope = client.scope ? client.scope.split(' ') : undefined;
+
+    console.log(`GET /authorize 에서 rscope: ${rscope}`);
+    console.log(`GET /authorize 에서 cscope: ${cscope}`);
+
+    if (__.difference(rscope, cscope).length > 0) { // true면 제공되지않는 권한이 포함된 것임.
+      const urlParsed = buildUrl(req.query.redirect_uri, { error: 'invalid_scope' });
+      res.redirect(urlParsed);
+      return;
+    }
 
     var reqid = randomstring.generate(8);
 
@@ -78,15 +98,20 @@ app.get('/authorize', function(req, res) {
 
     /*
      * Send the requested scopes to the approval page for rendering
+     * 렌더링을 위해 요청된 범위를 Scope 페이지로 보냅니다.
      */
-    res.render('approve', { client: client, reqid: reqid });
+    res.render('approve', { client: client, reqid: reqid, scope: rscope });
     return;
   }
 });
 
+
+/**
+ * 인가 뷰 렌더링에서 Approve 버튼 누름
+ */
 app.post('/approve', function(req, res) {
-  var reqid = req.body.reqid;
-  var query = requests[reqid];
+  const reqid = req.body.reqid;
+  const query = requests[reqid];
   delete requests[reqid];
 
   if (!query) {
@@ -99,19 +124,31 @@ app.post('/approve', function(req, res) {
     if (query.response_type == 'code') {
       // user approved access
 
+
       /*
        * Make sure the approved scopes from the form are allowed for this client
+       * 이 클라이언트에 대해 폼의 승인된 스코프가 허용되는지 확인하십시오.
        */
+      const rscope = getScopesFromForm(req.body);
+      const client = getClient(query.client_id);
+      const cscope = client.scope ? client.scope.split(' ') : undefined;
+
+      if (__.difference(rscope, cscope).length > 0) { // true면 제공되지않는 권한이 포함된 것임.
+        const urlParsed = buildUrl(req.query.redirect_uri, { error: 'invalid_scope' });
+        res.redirect(urlParsed);
+        return;
+      }
+
 
       var code = randomstring.generate(8);
 
       // save the code and request for later
-
+      // 코드를 저장하고 나중에 요청
       /*
        * Save the approved scopes as part of this object
+       * 승인된 범위를 이 객체의 일부로 저장
        */
-
-      codes[code] = { request: query };
+      codes[code] = { request: query, scope: rscope };
 
       var urlParsed = buildUrl(query.redirect_uri, {
         code: code,
@@ -137,6 +174,10 @@ app.post('/approve', function(req, res) {
   }
 });
 
+
+/**
+ * 클라이언트가 백 채널로 액세스 요청을 위한 API 주소
+ */
 app.post('/token', function(req, res) {
   var auth = req.headers['authorization'];
   if (auth) {
@@ -180,13 +221,13 @@ app.post('/token', function(req, res) {
       if (code.request.client_id == clientId) {
         /*
          * Save the approved scopes as part of the token's structure
+         * 승인된 Scope 를 토큰 구조의 일부로 저장
          */
-
         var access_token = randomstring.generate();
         var refresh_token = randomstring.generate();
 
-        nosql.insert({ access_token: access_token, client_id: clientId });
-        nosql.insert({ refresh_token: refresh_token, client_id: clientId });
+        nosql.insert({ access_token: access_token, client_id: clientId, scope: code.scope });
+        nosql.insert({ refresh_token: refresh_token, client_id: clientId, scope: code.scope });
 
         console.log('Issuing access token %s', access_token);
 
@@ -198,7 +239,9 @@ app.post('/token', function(req, res) {
           access_token: access_token,
           token_type: 'Bearer',
           refresh_token: refresh_token,
+          scope: code.scope.join(' '),
         };
+        // 클라이언트 응답에도 scope 정보롤 포함해서 보내주는데 일관성을 위해 각 스코프가 공백으로 구분되도록 모양을 맞춤.
 
         res.status(200).json(token_response);
         console.log('Issued tokens for code %s', req.body.code);
@@ -230,8 +273,9 @@ app.post('/token', function(req, res) {
 
           /*
            * Bonus: handle scopes for a refresh token request appropriately
+           * 리프레시 토큰일 때는 권한을 좀 더 축소해보는 등... 뭔가 적절하게 더 처리해보라는 과제를 내주신 것 같음.
+           * 이부분은 진행하지말고 커밋을 먼저하자!
            */
-
           var access_token = randomstring.generate();
           nosql.insert({ access_token: access_token, client_id: clientId });
           var token_response = {
@@ -277,6 +321,11 @@ var decodeClientCredentials = function(auth) {
   return { id: clientId, secret: clientSecret };
 };
 
+/**
+ * 폼으로부터 스코프 얻기
+ * @param body
+ * @returns {*[]}
+ */
 var getScopesFromForm = function(body) {
   return __.filter(__.keys(body), function(s) {
     return __.string.startsWith(s, 'scope_');
